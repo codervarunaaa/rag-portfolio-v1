@@ -3,3 +3,4 @@ data/pdfs/*.pdf
 __pycache__/
 *.pyc
 .env
+data/vectors.jsonl
