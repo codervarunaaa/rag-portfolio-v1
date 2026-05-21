@@ -8,9 +8,10 @@ from search import load_vectors
 load_dotenv()
 
 PROJECT = "rag-portfolio-v1"
-EMBED_REGION = "asia-south1"
+EMBED_REGION = "asia-south1"      # embeddings work fine in Mumbai
+GEN_REGION = "us-central1"        # Gemini gen models live here
 EMBED_MODEL = "text-embedding-005"
-GEN_MODEL = "gemini-2.5-flash"
+GEN_MODEL = "gemini-2.5-flash"    # try -flash first; fall back to -flash-lite if needed
 TOP_K = 3
 
 SYSTEM = (
@@ -43,7 +44,7 @@ def generate_aistudio(prompt: str):
 
 def generate_vertex(prompt: str):
     from vertexai.generative_models import GenerativeModel
-    vertexai.init(project=PROJECT, location=EMBED_REGION)
+    vertexai.init(project=PROJECT, location=GEN_REGION)
     model = GenerativeModel(GEN_MODEL)
     resp = model.generate_content(
         [prompt],
@@ -56,8 +57,17 @@ def ask(query: str, backend: str = "aistudio"):
     hits = retrieve(query)
     context = build_context(hits)
     prompt = f"{SYSTEM}\n\nContext:\n{context}\n\nQuestion: {query}"
-    gen = generate_aistudio if backend == "aistudio" else generate_vertex
-    answer, tokens = gen(prompt)
+    try:
+        gen = generate_aistudio if backend == "aistudio" else generate_vertex
+        answer, tokens = gen(prompt)
+    except Exception as e:
+        msg = str(e)
+        if backend == "aistudio" and "503" in msg:
+            print("⚠️ AI Studio 503 — falling back to Vertex")
+            answer, tokens = generate_vertex(prompt)
+            backend = "vertex (fallback)"
+        else:
+            raise
 
     print(f"\nQ: {query}\nBackend: {backend}\n")
     print("Retrieved:")
