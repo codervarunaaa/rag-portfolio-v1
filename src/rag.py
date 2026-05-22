@@ -48,7 +48,7 @@ def generate_vertex(prompt: str):
     model = GenerativeModel(GEN_MODEL)
     resp = model.generate_content(
         [prompt],
-        generation_config={"max_output_tokens": 600, "temperature": 0.2},
+        generation_config={"max_output_tokens": 1024, "temperature": 0.2},
     )
     u = resp.usage_metadata
     return resp.text, {"in": u.prompt_token_count, "out": u.candidates_token_count}
