@@ -1,8 +1,14 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from rag import answer, _ensure_loaded
 
-app = FastAPI(title="rag-portfolio-v1", version="1.0")
+@asynccontextmanager
+async def lifespan(app):
+    _ensure_loaded()  # load vectors + model once at boot
+    yield
+
+app = FastAPI(title="rag-portfolio-v1", version="1.0", lifespan=lifespan)
 
 class AskRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=1000)
