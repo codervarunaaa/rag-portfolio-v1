@@ -15,10 +15,6 @@ class AskRequest(BaseModel):
     backend: str = Field("aistudio", pattern="^(aistudio|vertex)$")
     k: int = Field(3, ge=1, le=10)
 
-@app.on_event("startup")
-def warmup():
-    # Load vectors + embedding model once at boot
-    _ensure_loaded()
 
 @app.get("/health")
 def health():
