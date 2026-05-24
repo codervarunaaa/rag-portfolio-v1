@@ -1,34 +1,21 @@
-import json, sys
+import json
 import numpy as np
-import vertexai
-from vertexai.language_models import TextEmbeddingModel
+from google.cloud import storage
+from google.api_core.retry import Retry
 
-PROJECT = "rag-portfolio-v1"
-REGION = "asia-south1"
-MODEL_NAME = "text-embedding-005"
+BUCKET = "rag-portfolio-v1-pdfs-vaarun"
+VECTORS_BLOB = "index/vectors.jsonl"
+DL_RETRY = Retry(initial=1.0, maximum=10.0, multiplier=2.0, timeout=300.0)
 
-def load_vectors(path="data/vectors.jsonl"):
+def load_vectors():
+    client = storage.Client()
+    blob = client.bucket(BUCKET).blob(VECTORS_BLOB)
+    text = blob.download_as_text(retry=DL_RETRY, timeout=120)
     docs, vecs = [], []
-    with open(path) as f:
-        for line in f:
-            d = json.loads(line)
-            vecs.append(d.pop("embedding"))
-            docs.append(d)
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        d = json.loads(line)
+        vecs.append(d.pop("embedding"))
+        docs.append(d)
     return docs, np.array(vecs)
-
-def search(query: str, k: int = 3):
-    vertexai.init(project=PROJECT, location=REGION)
-    model = TextEmbeddingModel.from_pretrained(MODEL_NAME)
-    q_vec = np.array(model.get_embeddings([query])[0].values)
-    docs, vecs = load_vectors()
-    # cosine sim (vectors are already unit-norm from Vertex)
-    sims = vecs @ q_vec
-    top = np.argsort(-sims)[:k]
-    for rank, idx in enumerate(top, 1):
-        print(f"\n#{rank} score={sims[idx]:.3f} [{docs[idx]['source']} chunk {docs[idx]['chunk_id']}]")
-        print(docs[idx]["text"][:300], "...")
-
-if __name__ == "__main__":
-    q = " ".join(sys.argv[1:]) or "What is multi-head attention?"
-    print(f"Query: {q}")
-    search(q)
